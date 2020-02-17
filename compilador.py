@@ -28,8 +28,7 @@ def parser(arg, op_index):
 def main():
     
     if len(sys.argv) <= 1:
-        print("Sem argumentos")
-        return -1
+        raise SyntaxError("Sem argumentos")
 
     # Parser
     total = []
@@ -45,30 +44,25 @@ def main():
     total_len = len(total)
 
     if total_len < 3:
-        print("Sem informacao suficiente")
-        return -1
+        raise SyntaxError("Sem informacao suficiente")
 
     # Verificador léxico e sintático
     for i in range(total_len):
         if i == 0:
             if total[i] in OPERATORS:
-                print("Primeiro caractere operador")
-                return -1
+                raise SyntaxError("Primeiro caractere operador")
 
         elif i == total_len-1:
             if total[i] in OPERATORS:
-                print("Ultimo caractere operador")
-                return -1
+                raise SyntaxError("Ultimo caractere operador")
 
         if i < total_len-1:
             if total[i] in OPERATORS and total[i+1] in OPERATORS:
-                print("Dois operadores seguidos")
-                return -1
+                raise SyntaxError("Dois operadores seguidos")
 
         for char in total[i]:
             if char not in NUMBERS and char not in OPERATORS:
-                print("Caractere nao permitido {}".format(char))
-                return -1
+                raise SyntaxError("Caractere nao permitido {}".format(char))
     
     # Calculo
     result = 0
@@ -83,8 +77,7 @@ def main():
         elif total[i] == "-":
             result -= int(total[i+1])
         else:
-            print("Bugou")
-            print(total)
+            raise SyntaxError("Dois numeros seguidos")
         i += 2
 
     print(result)
