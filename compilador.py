@@ -132,7 +132,7 @@ def main():
     print(code)
 
     result = Parser.run(code)
-    print("R: {}".format(result))
+    print("{}".format(result))
 
 if __name__ == "__main__":
     main()
