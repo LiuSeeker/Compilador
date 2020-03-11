@@ -20,5 +20,6 @@ Diagrama sintático:
 EBNF:
 ```
 EXPR = TERM, {("+"|"-"), TERM}
-TERM = num, {("\*"|"/"), num}
+TERM = FACT, {("*"|"/"), FACT}
+FACT = ( num | (("+"|"-"), FACT) | ( "(", EXPR, ")" ) )
 ```
