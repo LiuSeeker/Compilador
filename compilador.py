@@ -46,6 +46,14 @@ class Tokenizer:
                 self.actual = Token("DIV", "/")
                 self.position += 1
                 return
+            elif self.origin[self.position] == "(":
+                self.actual = Token("OPAR", "(")
+                self.position += 1
+                return
+            elif self.origin[self.position] == ")":
+                self.actual = Token("CPAR", ")")
+                self.position += 1
+                return
             
             else:
                 raise SyntaxError("Caractere nao permitido {}".format(self.origin[self.position]))
@@ -61,32 +69,16 @@ class Parser:
     def parseTerm():
         ret = 0
         
-        if Parser.tokens.actual.type == "INT":
-            ret = Parser.tokens.actual.value
-            Parser.tokens.selectNext()
-            while Parser.tokens.actual.type == "MULT" or Parser.tokens.actual.type == "DIV":
-                if Parser.tokens.actual.value == "*":
-                    Parser.tokens.selectNext()
-                    if Parser.tokens.actual.type == "INT":
-                        ret *= Parser.tokens.actual.value
-                    else:
-                        raise SyntaxError("Dois operadores seguidos")
-                elif Parser.tokens.actual.value == "/":
-                    Parser.tokens.selectNext()
-                    if Parser.tokens.actual.type == "INT":
-                        ret //= Parser.tokens.actual.value
-                    else:
-                        raise SyntaxError("Dois operadores seguidos")
+        ret = Parser.parseFactor()
+        while Parser.tokens.actual.type == "MULT" or Parser.tokens.actual.type == "DIV":
+            if Parser.tokens.actual.value == "*":
                 Parser.tokens.selectNext()
-            
-            return ret
+                ret *= Parser.parseFactor()
+            elif Parser.tokens.actual.value == "/":
+                Parser.tokens.selectNext()
+                ret /= Parser.parseFactor()
         
-
-
-        elif Parser.tokens.actual.type == "EOF":
-            raise SyntaxError("Ultimo caractere operador")
-        else:
-            raise SyntaxError("Dois operadores seguidos")
+        return ret
     
     @staticmethod
     def parseExpression():
@@ -96,6 +88,7 @@ class Parser:
         while Parser.tokens.actual.type == "PLUS" or Parser.tokens.actual.type == "MINUS":
             if Parser.tokens.actual.value == "+":
                 Parser.tokens.selectNext()
+                print("tika")
                 ret += Parser.parseTerm()
             elif Parser.tokens.actual.value == "-":
                 Parser.tokens.selectNext()
@@ -104,13 +97,50 @@ class Parser:
         return ret
 
     @staticmethod
+    def parseFactor():
+        print(Parser.tokens.actual.type, Parser.tokens.actual.value)
+        if Parser.tokens.actual.type == "INT":
+            ret = Parser.tokens.actual.value
+            Parser.tokens.selectNext()
+        elif Parser.tokens.actual.type == "PLUS" or Parser.tokens.actual.type == "MINUS":
+            if Parser.tokens.actual.value == "+":
+                Parser.tokens.selectNext()
+                ret = 1 * Parser.parseFactor()
+            elif Parser.tokens.actual.value == "-":
+                Parser.tokens.selectNext()
+                ret = -1 * Parser.parseFactor()
+        elif Parser.tokens.actual.type == "OPAR":
+            Parser.tokens.selectNext()
+            ret = Parser.parseExpression()
+            
+            if Parser.tokens.actual.type != "CPAR":
+                if Parser.tokens.actual.type == "INT":
+                    raise SyntaxError("Dois numeros seguidos")
+                else:
+                    raise SyntaxError("Fechamento de parenteses esperado")
+            Parser.tokens.selectNext()
+        
+        elif Parser.tokens.actual.type == "EOF":
+            raise SyntaxError("Ultimo caractere operador")
+        elif Parser.tokens.actual.type == "MULT" or Parser.tokens.actual.type == "DIV":
+            raise SyntaxError("Dois operadores de multiplicacao e/ou divisiao seguidos")
+
+        elif Parser.tokens.actual.type == "CPAR":
+            raise SyntaxError("Fechamento de parentes desnecessario")
+        
+        return ret
+
+    @staticmethod
     def run(code):
         Parser.tokens = Tokenizer(code)
-        if Parser.tokens.actual.type != "INT":
-            raise SyntaxError("Primeiro caractere operador")
+        if Parser.tokens.actual.type == "MULT" or Parser.tokens.actual.type == "DIV":
+            raise SyntaxError("Primeiro caractere operador nao permitido")
         result = Parser.parseExpression()
         if Parser.tokens.actual.type != "EOF":
-            raise SyntaxError("Dois numeros seguidos")
+            if Parser.tokens.actual.type == "CPAR":
+                raise SyntaxError("Fechamento de parentes desnecessario")
+            elif Parser.tokens.actual.type == "INT":
+                raise SyntaxError("Dois numeros seguidos")
         return result
 
 class PrePro:
@@ -125,14 +155,12 @@ def main():
     if len(sys.argv) <= 1:
         raise SyntaxError("Sem argumentos")
     
-    code = "".join(sys.argv[1:])
+    code = "".join(sys.argv[1:])    
 
     code = PrePro.filter(code)
 
-    print(code)
-
     result = Parser.run(code)
-    print("{}".format(result))
+    print(result)
 
 if __name__ == "__main__":
     main()
