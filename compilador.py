@@ -88,7 +88,6 @@ class Parser:
         while Parser.tokens.actual.type == "PLUS" or Parser.tokens.actual.type == "MINUS":
             if Parser.tokens.actual.value == "+":
                 Parser.tokens.selectNext()
-                print("tika")
                 ret += Parser.parseTerm()
             elif Parser.tokens.actual.value == "-":
                 Parser.tokens.selectNext()
@@ -98,7 +97,6 @@ class Parser:
 
     @staticmethod
     def parseFactor():
-        print(Parser.tokens.actual.type, Parser.tokens.actual.value)
         if Parser.tokens.actual.type == "INT":
             ret = Parser.tokens.actual.value
             Parser.tokens.selectNext()
@@ -127,6 +125,9 @@ class Parser:
 
         elif Parser.tokens.actual.type == "CPAR":
             raise SyntaxError("Fechamento de parentes desnecessario")
+        else:
+            print("WUT")
+            raise SyntaxError()
         
         return ret
 
