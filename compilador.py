@@ -142,7 +142,7 @@ class Parser:
                 raise SyntaxError("Fechamento de parentes desnecessario")
             elif Parser.tokens.actual.type == "INT":
                 raise SyntaxError("Dois numeros seguidos")
-        return result
+        return int(result)
 
 class PrePro:
     @staticmethod
