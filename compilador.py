@@ -66,47 +66,35 @@ class Parser:
     tokens = None
     
     @staticmethod
-    def parseTerm():
-        ret = 0
-        
+    def parseTerm():        
         ret = Parser.parseFactor()
         while Parser.tokens.actual.type == "MULT" or Parser.tokens.actual.type == "DIV":
-            if Parser.tokens.actual.value == "*":
-                Parser.tokens.selectNext()
-                ret *= Parser.parseFactor()
-            elif Parser.tokens.actual.value == "/":
-                Parser.tokens.selectNext()
-                ret /= Parser.parseFactor()
+            tmp_ret = BinOp(Parser.tokens.actual.value, ret)
+            Parser.tokens.selectNext()
+            tmp_ret.children.append(Parser.parseFactor())
+            ret = tmp_ret
         
         return ret
     
     @staticmethod
     def parseExpression():
-        ret = 0
-        
         ret = Parser.parseTerm()
         while Parser.tokens.actual.type == "PLUS" or Parser.tokens.actual.type == "MINUS":
-            if Parser.tokens.actual.value == "+":
-                Parser.tokens.selectNext()
-                ret += Parser.parseTerm()
-            elif Parser.tokens.actual.value == "-":
-                Parser.tokens.selectNext()
-                ret -= Parser.parseTerm()
+            ret = BinOp(Parser.tokens.actual.value, ret)
+            Parser.tokens.selectNext()
+            ret.children.append(Parser.parseTerm())
         
         return ret
 
     @staticmethod
     def parseFactor():
         if Parser.tokens.actual.type == "INT":
-            ret = Parser.tokens.actual.value
+            ret = IntVal(Parser.tokens.actual.value)
             Parser.tokens.selectNext()
         elif Parser.tokens.actual.type == "PLUS" or Parser.tokens.actual.type == "MINUS":
-            if Parser.tokens.actual.value == "+":
-                Parser.tokens.selectNext()
-                ret = 1 * Parser.parseFactor()
-            elif Parser.tokens.actual.value == "-":
-                Parser.tokens.selectNext()
-                ret = -1 * Parser.parseFactor()
+            ret = UnOp(Parser.tokens.actual.value)
+            Parser.tokens.selectNext()
+            ret.children.append(Parser.parseFactor())
         elif Parser.tokens.actual.type == "OPAR":
             Parser.tokens.selectNext()
             ret = Parser.parseExpression()
@@ -136,13 +124,13 @@ class Parser:
         Parser.tokens = Tokenizer(code)
         if Parser.tokens.actual.type == "MULT" or Parser.tokens.actual.type == "DIV":
             raise SyntaxError("Primeiro caractere operador nao permitido")
-        result = Parser.parseExpression()
+        ast = Parser.parseExpression()
         if Parser.tokens.actual.type != "EOF":
             if Parser.tokens.actual.type == "CPAR":
                 raise SyntaxError("Fechamento de parentes desnecessario")
             elif Parser.tokens.actual.type == "INT":
                 raise SyntaxError("Dois numeros seguidos")
-        return int(result)
+        return ast
 
 class PrePro:
     @staticmethod
@@ -151,16 +139,73 @@ class PrePro:
         string = re.sub(re.compile("/\*.*?\*/",re.DOTALL) ,"" ,string) # remove all occurrences streamed comments (/*COMMENT */) from string
         return string
 
+class Node:
+    def __init__(self):
+        self.value = None
+        self.children = []
+    
+    def evaluate(self):
+        raise NotImplementedError('subclasses must override evaluate()!')
+
+class BinOp(Node):
+    def __init__(self, value, c1):
+        self.value = value
+        self.children = [c1]
+
+    def evaluate(self):
+        if self.value == "+":
+            return self.children[0].evaluate() + self.children[1].evaluate()
+        elif self.value == "-":
+            return self.children[0].evaluate() - self.children[1].evaluate()
+        elif self.value == "*":
+            return self.children[0].evaluate() * self.children[1].evaluate()
+        elif self.value == "/":
+            return self.children[0].evaluate() / self.children[1].evaluate()
+        else:
+            print("BinOp Fail")
+
+class UnOp(Node):
+    def __init__(self, value):
+        self.value = value
+        self.children = []
+
+    def evaluate(self):
+        if self.value == "+":
+            return self.children[0].evaluate()
+        elif self.value == "-":
+            return -self.children[0].evaluate()
+        else:
+            print("UnOp Fail")
+
+class IntVal(Node):
+    def __init__(self, value):
+        self.value = value
+
+    def evaluate(self):
+        return self.value
+
+class NoOp(Node):
+    def evaluate(self):
+        pass
+
+
 def main():
    
     if len(sys.argv) <= 1:
         raise SyntaxError("Sem argumentos")
     
-    code = "".join(sys.argv[1:])    
+    if sys.argv[1][-4:] != ".php":
+        raise TypeError("Arquivo tem que ser .php")
+
+    with open(sys.argv[1]) as f:
+        code = f.read()
 
     code = PrePro.filter(code)
 
-    result = Parser.run(code)
+    ast = Parser.run(code)
+
+    result = int(ast.evaluate())
+
     print(result)
 
 if __name__ == "__main__":
