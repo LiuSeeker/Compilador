@@ -1,17 +1,24 @@
 # Compilador
 
-*Ultima atualizacao README.md: 11/03*
+*Ultima atualizacao README.md: 06/04*
 
-#### Calculadora de terminal em python
+#### Compilador de .php
+
+Keywords disponíveis:
+- "{ }" bloco
+- "$" variável
+- "echo"
+
 
 Operadores disponíveis:
 - "+"
 - "-"
 - "*"
 - "/"
+- "( )"
 
 Exemplo de uso:
-> python compilador.py "1 + 10 - 2  \* 5"
+> python compilador.py exemplo_entrada.php
 
 Diagrama sintático:
 
@@ -19,7 +26,10 @@ Diagrama sintático:
 
 EBNF:
 ```
+BLOC = "{", COMM, {COMM}, "}"
+COMM = ( (IDEN, "=", EXPR) | ("echo", EXPR) | BLOC ), ";"
 EXPR = TERM, {("+"|"-"), TERM}
 TERM = FACT, {("*"|"/"), FACT}
-FACT = ( num | (("+"|"-"), FACT) | ( "(", EXPR, ")" ) )
+FACT = ( num | (("+"|"-"), FACT) | ( "(", EXPR, ")" ) | IDEN )
+IDEN =  "$", letra, {( letra | num | "_" )}
 ```
