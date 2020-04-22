@@ -12,15 +12,19 @@ class Tokenizer:
         self.origin = origin
         self.position = 0
         self.actual = None
+        self.line_n = 0
         self.selectNext()
 
     def selectNext(self):
         if self.position < len(self.origin):
-            while self.origin[self.position] == " ":
+            while self.origin[self.position] == " " or self.origin[self.position] is "\n":
+                if self.origin[self.position] is "\n":
+                    self.line_n += 1
                 self.position += 1
                 if self.position >= len(self.origin):
                     self.actual = Token("EOF", "")
                     return
+
             if self.origin[self.position].isdigit():
                 i = self.position
                 self.position += 1
@@ -70,6 +74,21 @@ class Tokenizer:
             elif self.origin[self.position] == "=":
                 self.actual = Token("IGUA", "=")
                 self.position += 1
+                if self.origin[self.position] == "=":
+                    self.actual = Token("IGUAR", "==")
+                    self.position += 1
+                return
+            elif self.origin[self.position] == ">":
+                self.actual = Token("MAIO", ">")
+                self.position += 1
+                return
+            elif self.origin[self.position] == "<":
+                self.actual = Token("MENO", "<")
+                self.position += 1
+                return
+            elif self.origin[self.position] == "!":
+                self.actual = Token("NOT", "!")
+                self.position += 1
                 return
             elif self.origin[self.position] == "$":
                 i = self.position
@@ -94,6 +113,24 @@ class Tokenizer:
                 if self.origin[i:self.position].lower() == "echo":
                     self.actual = Token("ECHO", self.origin[i:self.position])
                     return
+                elif self.origin[i:self.position].lower() == "or":
+                    self.actual = Token("OR", self.origin[i:self.position])
+                    return
+                elif self.origin[i:self.position].lower() == "and":
+                    self.actual = Token("AND", self.origin[i:self.position])
+                    return
+                elif self.origin[i:self.position].lower() == "while":
+                    self.actual = Token("WHIL", self.origin[i:self.position])
+                    return
+                elif self.origin[i:self.position].lower() == "if":
+                    self.actual = Token("IF", self.origin[i:self.position])
+                    return
+                elif self.origin[i:self.position].lower() == "else":
+                    self.actual = Token("ELSE", self.origin[i:self.position])
+                    return
+                elif self.origin[i:self.position].lower() == "readline":
+                    self.actual = Token("READ", self.origin[i:self.position])
+                    return
                 else:
                     raise SyntaxError("Keyword desconhecida {}".format(self.origin[i:self.position]))
             
@@ -108,9 +145,104 @@ class Parser:
     tokens = None
 
     @staticmethod
+    def parseBlock():
+        if Parser.tokens.actual.type == "OCHA":
+            ret = Comm()
+            Parser.tokens.selectNext()
+            while Parser.tokens.actual.type != "CCHA":
+                #print("NOVA LINHA")
+                if Parser.tokens.actual.type == "EOF":
+                    raise SyntaxError("Line {}: Fechamento de chaves esperado".format(Parser.tokens.line_n))
+                ret_t = Parser.parseCommand()
+                if ret_t is not None:
+                    ret.children.append(ret_t)
+            Parser.tokens.selectNext()
+        else:
+            raise SyntaxError("Line {}: Abertura de chaves esperado".format(Parser.tokens.line_n))
+        
+        return ret
+    
+    @staticmethod
+    def parseCommand():
+        #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
+        if Parser.tokens.actual.type == "PVIR":
+            ret = None
+        elif Parser.tokens.actual.type == "OCHA":
+            ret = Parser.parseBlock()
+        elif Parser.tokens.actual.type == "IDEN":
+            ret = Iden(Parser.tokens.actual.value)
+            Parser.tokens.selectNext()
+            #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
+            if Parser.tokens.actual.type == "IGUA":
+                ret = Assign(ret)
+                Parser.tokens.selectNext()
+                ret.children.append(Parser.parseRelationExpression())
+                if Parser.tokens.actual.type == "PVIR":
+                    #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
+                    Parser.tokens.selectNext()
+                else:
+                    raise SyntaxError("Line {}: Ponto e virgula esperado".format(Parser.tokens.line_n))
+            else:
+                raise SyntaxError("Line {}: Assignment ('=') esperado".format(Parser.tokens.line_n))
+            
+        elif Parser.tokens.actual.type == "ECHO":
+            ret = Echo()
+            Parser.tokens.selectNext()
+            ret.children.append(Parser.parseRelationExpression())
+            if Parser.tokens.actual.type == "PVIR":
+                #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
+                Parser.tokens.selectNext()
+            else:
+                raise SyntaxError("Line {}: Ponto e virgula esperado".format(Parser.tokens.line_n))
+        elif Parser.tokens.actual.type == "WHIL":
+            ret = While()
+            Parser.tokens.selectNext()
+            if Parser.tokens.actual.type == "OPAR":
+                Parser.tokens.selectNext()
+                ret.children.append(Parser.parseRelationExpression())
+                if Parser.tokens.actual.type == "CPAR":
+                    Parser.tokens.selectNext()
+                    ret.children.append(Parser.parseCommand())
+                else:
+                    raise SyntaxError("Line {}: Fechamento de parenteses esperado".format(Parser.tokens.line_n))
+            else:
+                raise SyntaxError("Line {}: Abertura de parenteses esperado".format(Parser.tokens.line_n))
+        elif Parser.tokens.actual.type == "IF":
+            ret = If()
+            Parser.tokens.selectNext()
+            if Parser.tokens.actual.type == "OPAR":
+                Parser.tokens.selectNext()
+                ret.children.append(Parser.parseRelationExpression())
+                if Parser.tokens.actual.type == "CPAR":
+                    Parser.tokens.selectNext()
+                    ret.children.append(Parser.parseCommand())
+                    if Parser.tokens.actual.type == "ELSE":
+                        Parser.tokens.selectNext()
+                        ret.children.append(Parser.parseCommand())
+                else:
+                    raise SyntaxError("Line {}: Fechamento de parenteses esperado".format(Parser.tokens.line_n))
+            else:
+                raise SyntaxError("Line {}: Abertura de parenteses esperado".format(Parser.tokens.line_n))
+        else:
+            raise SyntaxError("Line {}: Identifier, Echo ou Block esperado".format(Parser.tokens.line_n))
+
+        return ret
+
+    @staticmethod
+    def parseRelationExpression():
+        ret = Parser.parseExpression()
+        while Parser.tokens.actual.type == "IGUAR" or Parser.tokens.actual.type == "MAIO" or Parser.tokens.actual.type == "MENO":
+            #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
+            ret = BinOp(Parser.tokens.actual.value, ret)
+            Parser.tokens.selectNext()
+            ret.children.append(Parser.parseExpression())
+        
+        return ret
+
+    @staticmethod
     def parseExpression():
         ret = Parser.parseTerm()
-        while Parser.tokens.actual.type == "PLUS" or Parser.tokens.actual.type == "MINUS":
+        while Parser.tokens.actual.type == "PLUS" or Parser.tokens.actual.type == "MINUS" or Parser.tokens.actual.type == "OR":
             #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
             ret = BinOp(Parser.tokens.actual.value, ret)
             Parser.tokens.selectNext()
@@ -121,7 +253,7 @@ class Parser:
     @staticmethod
     def parseTerm():        
         ret = Parser.parseFactor()
-        while Parser.tokens.actual.type == "MULT" or Parser.tokens.actual.type == "DIV":
+        while Parser.tokens.actual.type == "MULT" or Parser.tokens.actual.type == "DIV" or Parser.tokens.actual.type == "AND":
             #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
             tmp_ret = BinOp(Parser.tokens.actual.value, ret)
             Parser.tokens.selectNext()
@@ -136,7 +268,7 @@ class Parser:
             #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
             ret = IntVal(int(Parser.tokens.actual.value))
             Parser.tokens.selectNext()
-        elif Parser.tokens.actual.type == "PLUS" or Parser.tokens.actual.type == "MINUS":
+        elif Parser.tokens.actual.type == "PLUS" or Parser.tokens.actual.type == "MINUS" or Parser.tokens.actual.type == "NOT":
             #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
             ret = UnOp(Parser.tokens.actual.value)
             Parser.tokens.selectNext()
@@ -144,24 +276,36 @@ class Parser:
         elif Parser.tokens.actual.type == "OPAR":
             #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
             Parser.tokens.selectNext()
-            ret = Parser.parseExpression()
+            ret = Parser.parseRelationExpression()
             #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
             if Parser.tokens.actual.type != "CPAR":
                 if Parser.tokens.actual.type == "INT":
-                    raise SyntaxError("Dois numeros seguidos")
+                    raise SyntaxError("Line {}: Dois numeros seguidos".format(Parser.tokens.line_n))
                 else:
-                    raise SyntaxError("Fechamento de parenteses esperado")
+                    raise SyntaxError("Line {}: Fechamento de parenteses esperado".format(Parser.tokens.line_n))
             Parser.tokens.selectNext()
         elif Parser.tokens.actual.type == "IDEN":
             #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
             ret = Iden(Parser.tokens.actual.value)
             Parser.tokens.selectNext()
+        elif Parser.tokens.actual.type == "READ":
+            ret_t = Readline()
+            Parser.tokens.selectNext()
+            if Parser.tokens.actual.type == "OPAR":
+                Parser.tokens.selectNext()
+                if Parser.tokens.actual.type == "CPAR":
+                    Parser.tokens.selectNext()
+                    ret = ret_t
+                else:
+                    raise SyntaxError("Line {}: Fechamento de parenteses esperado apos readline".format(Parser.tokens.line_n))
+            else:
+                raise SyntaxError("Line {}: Parenteses esperado apos readline".format(Parser.tokens.line_n))
         
         
         elif Parser.tokens.actual.type == "EOF":
-            raise SyntaxError("Ultimo caractere operador")
+            raise SyntaxError("Line {}: Ultimo caractere operador".format(Parser.tokens.line_n))
         elif Parser.tokens.actual.type == "MULT" or Parser.tokens.actual.type == "DIV":
-            raise SyntaxError("Dois operadores de multiplicacao e/ou divisiao seguidos")
+            raise SyntaxError("Line {}: Dois operadores de multiplicacao e/ou divisiao seguidos".format(Parser.tokens.line_n))
 
         elif Parser.tokens.actual.type == "CPAR":
             raise SyntaxError("Fechamento de parentes desnecessario")
@@ -172,69 +316,18 @@ class Parser:
         
         return ret
 
-    @staticmethod
-    def parseBlock():
-        if Parser.tokens.actual.type == "OCHA":
-            ret = Comm()
-            Parser.tokens.selectNext()
-            while Parser.tokens.actual.type != "CCHA":
-                #print("NOVA LINHA")
-                if Parser.tokens.actual.type == "EOF":
-                    raise SyntaxError("Fechamento de chaves esperado")
-                ret.children.append(Parser.parseCommand())
-            Parser.tokens.selectNext()
-        else:
-            raise SyntaxError("Abertura de chaves esperado")
-        
-        return ret
-
-    @staticmethod
-    def parseCommand():
-        #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
-        if Parser.tokens.actual.type == "OCHA":
-            ret = Parser.parseBlock()
-        elif Parser.tokens.actual.type == "IDEN":
-            ret = Iden(Parser.tokens.actual.value)
-            Parser.tokens.selectNext()
-            #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
-            if Parser.tokens.actual.type == "IGUA":
-                ret = Assign(ret)
-                Parser.tokens.selectNext()
-                ret.children.append(Parser.parseExpression())
-            else:
-                raise SyntaxError("Assignment ('=') esperado")
-            if Parser.tokens.actual.type == "PVIR":
-                #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
-                Parser.tokens.selectNext()
-            else:
-                raise SyntaxError("Ponto e virgula esperado")
-        elif Parser.tokens.actual.type == "ECHO":
-            ret = Echo()
-            Parser.tokens.selectNext()
-            ret.children.append(Parser.parseExpression())
-            if Parser.tokens.actual.type == "PVIR":
-                #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
-                Parser.tokens.selectNext()
-            else:
-                raise SyntaxError("Ponto e virgula esperado")
-            
-        else:
-            raise SyntaxError("Identifier, Echo ou Block esperado")
-
-        return ret
-
 
     @staticmethod
     def run(code):
         Parser.tokens = Tokenizer(code)
         if Parser.tokens.actual.type == "MULT" or Parser.tokens.actual.type == "DIV":
-            raise SyntaxError("Primeiro caractere operador nao permitido")
+            raise SyntaxError("Line {}: Primeiro caractere operador nao permitido".format(Parser.tokens.line_n))
         ast = Parser.parseBlock()
         if Parser.tokens.actual.type != "EOF":
             if Parser.tokens.actual.type == "CPAR":
-                raise SyntaxError("Fechamento de parentes desnecessario")
+                raise SyntaxError("Line {}: Fechamento de parentes desnecessario".format(Parser.tokens.line_n))
             elif Parser.tokens.actual.type == "INT":
-                raise SyntaxError("Dois numeros seguidos")
+                raise SyntaxError("Line {}: Dois numeros seguidos".format(Parser.tokens.line_n))
         return ast
 
 class PrePro:
@@ -242,7 +335,7 @@ class PrePro:
     def filter(string):
         ## https://stackoverflow.com/questions/2319019/using-regex-to-remove-comments-from-source-files
         string = re.sub(re.compile("/\*.*?\*/",re.DOTALL) ,"" ,string) # remove all occurrences streamed comments (/*COMMENT */) from string
-        string = re.sub(re.compile("\\n",re.DOTALL), "", string)
+        #string = re.sub(re.compile("\\n",re.DOTALL), " ", string)
         return string
 
 class Node:
@@ -267,6 +360,16 @@ class BinOp(Node):
             return self.children[0].evaluate(st) * self.children[1].evaluate(st)
         elif self.value == "/":
             return self.children[0].evaluate(st) / self.children[1].evaluate(st)
+        elif self.value == "==":
+            return self.children[0].evaluate(st) is self.children[1].evaluate(st)
+        elif self.value == ">":
+            return self.children[0].evaluate(st) > self.children[1].evaluate(st)
+        elif self.value == "<":
+            return self.children[0].evaluate(st) < self.children[1].evaluate(st)
+        elif self.value == "and":
+            return self.children[0].evaluate(st) and self.children[1].evaluate(st)
+        elif self.value == "or":
+            return self.children[0].evaluate(st) or self.children[1].evaluate(st)
         else:
             print("BinOp Fail")
 
@@ -280,6 +383,8 @@ class UnOp(Node):
             return self.children[0].evaluate(st)
         elif self.value == "-":
             return -self.children[0].evaluate(st)
+        elif self.value == "!":
+            return not self.children[0].evaluate(st)
         else:
             print("UnOp Fail")
 
@@ -317,6 +422,23 @@ class Echo(Node):
     def evaluate(self, st):
         print(int(self.children[0].evaluate(st)))
 
+class Readline(Node):
+    def evaluate(self, st):
+        return input()
+
+class While(Node):    
+    def evaluate(self, st):
+        while self.children[0].evaluate(st):
+            self.children[1].evaluate(st)
+
+class If(Node):    
+    def evaluate(self, st):
+        if self.children[0].evaluate(st):
+            self.children[1].evaluate(st)
+        else:
+            if len(self.children) > 2:
+                self.children[2].evaluate(st)
+
 class SymbolTable():
     def __init__(self):
         self.symbols = defaultdict(int)
@@ -327,7 +449,7 @@ class SymbolTable():
     def getSymbol(self, symbol):
         if symbol not in self.symbols.keys():
             raise NameError("{} nao definido".format(symbol))
-        return self.symbols[symbol]
+        return int(self.symbols[symbol])
 
 
 def main():
