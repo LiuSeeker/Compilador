@@ -1,7 +1,7 @@
 <?php
     $st = "oba";
 
-    echo $st;
+    echo $st; /*oba*/
 
     $a = 1;
     if ($a < 5)

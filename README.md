@@ -34,7 +34,8 @@ Diagrama sintático:
 
 EBNF:
 ```
-BLOC = "{", COMM, {COMM}, "}"
+PROG = "<?php", COMM, "?>"
+BLOC = "{", {COMM}, "}"
 COMM = (IDEN, "=", EXPR, ";")
       | ("echo", EXPR, ";")
       | BLOC
@@ -48,6 +49,10 @@ FACT = num
       | (("+"|"-"|"!"), FACT)
       | ( "(", RELE, ")" )
       | IDEN
-      | "readline"
+      | ("readline", "(", ")")
+      | "true"
+      | "false"
+      | STRG
 IDEN =  "$", letra, {( letra | num | "_" )}
+STRG = '"', {letra}, '"'
 ```

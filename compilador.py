@@ -469,7 +469,7 @@ class BinOp(Node):
             return ("bool", c1_int[1] < c2_int[1])
         # booleanos
         elif self.value == "==":
-            if c1[0] == c2[0] and c1[0] == "string":
+            if not(c1[0] == c2[0]) and (c1[0] == "string" or c2[0] == "string"):
                 raise TypeError("Line {}: Nao e possivel '==' entre '{}' e '{}'".format(Parser.tokens.line_n, c1[0], c2[0]))
             return ("bool", c1_int[1] == c2_int[1])
         
