@@ -5,7 +5,7 @@
 #### Compilador de .php
 
 Keywords disponíveis:
-- "<?php ?>"
+- "\<?php ?\>"
 - "{ }" bloco
 - "$" variável
 - "echo"
