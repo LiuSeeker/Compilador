@@ -579,13 +579,39 @@ class Readline(Node):
 
 class While(Node):    
     def evaluate(self, st):
-        while self.children[0].evaluate(st)[1]:
+        c1 = self.children[0].evaluate(st)
+        c1_bool = c1
+        if c1[0] == "int":
+            if c1[1] == 0:
+                c1_bool = ("bool", False)
+            else:
+                c1_bool = ("bool", True)
+        elif c1[0] == "string":
+            raise TypeError("Line {}: 'While' nao pode receber 'str'".format(Parser.tokens.line_n))
+        while c1_bool[1]:
             self.children[1].evaluate(st)
+            c1 = self.children[0].evaluate(st)
+            c1_bool = c1
+            if c1[0] == "int":
+                if c1[1] == 0:
+                    c1_bool = ("bool", False)
+                else:
+                    c1_bool = ("bool", True)
+            elif c1[0] == "string":
+                raise TypeError("Line {}: 'While' nao pode receber 'str'".format(Parser.tokens.line_n))
 
 class If(Node):    
     def evaluate(self, st):
         c1 = self.children[0].evaluate(st)
-        if c1[1]:
+        c1_bool = c1
+        if c1[0] == "int":
+            if c1[1] == 0:
+                c1_bool = ("bool", False)
+            else:
+                c1_bool = ("bool", True)
+        elif c1[0] == "string":
+            raise TypeError("Line {}: 'If' nao pode receber 'str'".format(Parser.tokens.line_n))
+        if c1_bool[1]:
             self.children[1].evaluate(st)
         else:
             if len(self.children) > 2:
