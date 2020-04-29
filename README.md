@@ -5,6 +5,7 @@
 #### Compilador de .php
 
 Keywords disponíveis:
+- "<?php ?>"
 - "{ }" bloco
 - "$" variável
 - "echo"
@@ -24,6 +25,7 @@ Operadores disponíveis:
 - "or"
 - "and"
 - "!"
+- "." concatenação
 
 Exemplo de uso:
 > python compilador.py exemplo_entrada.php
