@@ -135,25 +135,25 @@ class Tokenizer:
                         if self.position >= len(self.origin):
                             break
                 if self.origin[i:self.position].lower() == "echo":
-                    self.actual = Token("ECHO", self.origin[i:self.position])
+                    self.actual = Token("ECHO", self.origin[i:self.position].lower())
                     return
                 elif self.origin[i:self.position].lower() == "or":
-                    self.actual = Token("OR", self.origin[i:self.position])
+                    self.actual = Token("OR", self.origin[i:self.position].lower())
                     return
                 elif self.origin[i:self.position].lower() == "and":
-                    self.actual = Token("AND", self.origin[i:self.position])
+                    self.actual = Token("AND", self.origin[i:self.position].lower())
                     return
                 elif self.origin[i:self.position].lower() == "while":
-                    self.actual = Token("WHIL", self.origin[i:self.position])
+                    self.actual = Token("WHIL", self.origin[i:self.position].lower())
                     return
                 elif self.origin[i:self.position].lower() == "if":
-                    self.actual = Token("IF", self.origin[i:self.position])
+                    self.actual = Token("IF", self.origin[i:self.position].lower())
                     return
                 elif self.origin[i:self.position].lower() == "else":
-                    self.actual = Token("ELSE", self.origin[i:self.position])
+                    self.actual = Token("ELSE", self.origin[i:self.position].lower())
                     return
                 elif self.origin[i:self.position].lower() == "readline":
-                    self.actual = Token("READ", self.origin[i:self.position])
+                    self.actual = Token("READ", self.origin[i:self.position].lower())
                     return
                 elif self.origin[i:self.position].lower() == "true":
                     self.actual = Token("TRUE", True)
@@ -485,7 +485,7 @@ class BinOp(Node):
         elif self.value == ".":
             return ("string", str(c1[1]) + str(c2[1]))
         else:
-            print("BinOp Fail")
+            raise TypeError("BinOp Fail ({})".format(self.value))
 
 class UnOp(Node):
     def __init__(self, value):
@@ -515,7 +515,7 @@ class UnOp(Node):
         elif self.value == "!":
             return (c1_bool[0], not c1_bool[1])
         else:
-            print("UnOp Fail")
+            raise TypeError("UnOp Fail ({})".format(self.value))
 
 class IntVal(Node):
     def __init__(self, value):
