@@ -42,4 +42,34 @@
     $e = 4/ (1+ 1) *2;
     echo $d; /*5*/
     echo $e; /*4*/
+
+    function f1_($x){
+        if ($x == 1){
+            return 1;
+        }
+        else{
+            return $x * f1_($x-1);
+        }
+    }
+
+    echo f1_(5); /*120*/
+
+    function soma($x, $y) {
+        function echoes($b) {
+            echo $b;
+        }
+        $a = $x + $y;
+        /*echo $z;*/
+        echoes($a); /*7*/
+        return $a;
+        echo "nisbe"; /*n printa*/
+    }
+    $a = 3;
+    $b = soma($a, 4);
+    $z = 10;
+    echo $b; /*7*/
+    echoes($a); /*3*/
+    echoes("OBA"); /*OBA*/
+
+
 ?>
