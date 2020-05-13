@@ -94,9 +94,7 @@ class Tokenizer:
                 i = self.position
                 self.position += 1
                 if self.position < len(self.origin):
-                    if self.origin[self.position] == " ":
-                        self.actual = Token("MENO", "<")
-                    else:
+                    if self.origin[self.position] == "?":
                         while self.origin[self.position] != " " and self.origin[self.position] is not "\n":
                             self.position += 1
                             if self.position >= len(self.origin):
@@ -105,6 +103,9 @@ class Tokenizer:
                             self.actual = Token("OPRO", self.origin[i:self.position])
                         else:
                             raise SyntaxError("Keyword desconhecida {}".format(self.origin[i:self.position]))
+                    else:
+                        self.actual = Token("MENO", "<")
+                        
                 return
             elif self.origin[self.position] == "!":
                 self.actual = Token("NOT", "!")
@@ -672,7 +673,9 @@ class Echo(Node):
 class Readline(Node):
     def evaluate(self, st):
         inp = input()
-        if type(inp) != int:
+        try:
+            inp = int(inp)
+        except ValueError:
             raise TypeError("readline tem que ser 'int'")
         return ("int", inp)
 
