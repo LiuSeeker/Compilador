@@ -1,6 +1,6 @@
 # Compilador
 
-*Ultima atualizacao README.md: 23/04*
+*Ultima atualizacao README.md: 13/05*
 
 #### Compilador de .php
 
@@ -12,6 +12,7 @@ Keywords disponíveis:
 - "while"
 - "if" e "else"
 - "readline"
+- "function"
 
 Operadores disponíveis:
 - "+"
