@@ -71,6 +71,10 @@ class Tokenizer:
                 self.actual = Token("PVIR", ";")
                 self.position += 1
                 return
+            elif self.origin[self.position] == ",":
+                self.actual = Token("VIRG", ",")
+                self.position += 1
+                return
             elif self.origin[self.position] == ".":
                 self.actual = Token("PONT", ".")
                 self.position += 1
@@ -161,8 +165,21 @@ class Tokenizer:
                 elif self.origin[i:self.position].lower() == "false":
                     self.actual = Token("FALSE", False)
                     return
+                elif self.origin[i:self.position].lower() == "function":
+                    self.actual = Token("FUND", "function")
+                    return
+                elif self.origin[i:self.position].lower() == "return":
+                    self.actual = Token("RET", "return")
+                    return
                 else:
-                    raise SyntaxError("Keyword desconhecida {}".format(self.origin[i:self.position]))
+                    while self.origin[self.position].isdigit() or self.origin[self.position].isalpha() or self.origin[self.position] == "_":
+                        self.position += 1
+                        if self.position >= len(self.origin):
+                            break
+                    if self.origin[self.position] == "(":
+                        self.actual = Token("IDEF", self.origin[i:self.position].lower())
+                    else:
+                        raise SyntaxError("Keyword desconhecida {}".format(self.origin[i:self.position]))
             elif self.origin[self.position] == '"':
                 i = self.position
                 self.position += 1
@@ -209,6 +226,7 @@ class Parser:
             ret = Comm()
             Parser.tokens.selectNext()
             while Parser.tokens.actual.type != "CCHA":
+                #print(Parser.tokens.actual.type, Parser.tokens.actual.value, Parser.tokens.line_n)
                 #print("NOVA LINHA")
                 if Parser.tokens.actual.type == "EOF":
                     raise SyntaxError("Line {}: Fechamento de chaves esperado".format(Parser.tokens.line_n))
@@ -224,10 +242,14 @@ class Parser:
     @staticmethod
     def parseCommand():
         #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
+        # Ponto e Virgula
         if Parser.tokens.actual.type == "PVIR":
             ret = None
+            Parser.tokens.selectNext()
+        # Open Parenteses
         elif Parser.tokens.actual.type == "OCHA":
             ret = Parser.parseBlock()
+        # Identifier
         elif Parser.tokens.actual.type == "IDEN":
             ret = Iden(Parser.tokens.actual.value)
             Parser.tokens.selectNext()
@@ -243,7 +265,7 @@ class Parser:
                     raise SyntaxError("Line {}: Ponto e virgula esperado".format(Parser.tokens.line_n))
             else:
                 raise SyntaxError("Line {}: Assignment ('=') esperado".format(Parser.tokens.line_n))
-            
+        # Echo
         elif Parser.tokens.actual.type == "ECHO":
             ret = Echo()
             Parser.tokens.selectNext()
@@ -253,6 +275,7 @@ class Parser:
                 Parser.tokens.selectNext()
             else:
                 raise SyntaxError("Line {}: Ponto e virgula esperado".format(Parser.tokens.line_n))
+        # While
         elif Parser.tokens.actual.type == "WHIL":
             ret = While()
             Parser.tokens.selectNext()
@@ -266,6 +289,7 @@ class Parser:
                     raise SyntaxError("Line {}: Fechamento de parenteses esperado".format(Parser.tokens.line_n))
             else:
                 raise SyntaxError("Line {}: Abertura de parenteses esperado".format(Parser.tokens.line_n))
+        # If
         elif Parser.tokens.actual.type == "IF":
             ret = If()
             Parser.tokens.selectNext()
@@ -282,6 +306,62 @@ class Parser:
                     raise SyntaxError("Line {}: Fechamento de parenteses esperado".format(Parser.tokens.line_n))
             else:
                 raise SyntaxError("Line {}: Abertura de parenteses esperado".format(Parser.tokens.line_n))
+        # Declaracao function
+        elif Parser.tokens.actual.type == "FUND":
+            ret = FuncDef()
+            Parser.tokens.selectNext()
+            if Parser.tokens.actual.type == "IDEF":
+                ret.value = Parser.tokens.actual.value
+                Parser.tokens.selectNext()
+                if Parser.tokens.actual.type == "OPAR":
+                    Parser.tokens.selectNext()
+                    if Parser.tokens.actual.type == "CPAR":
+                        Parser.tokens.selectNext()
+                    else:
+                        if Parser.tokens.actual.type == "IDEN":
+                            ret.children.append(Iden(Parser.tokens.actual.value))
+                            Parser.tokens.selectNext()
+                        else:
+                            raise SyntaxError("Line {}: Identifier esperado".format(Parser.tokens.line_n))
+                        while Parser.tokens.actual.type == "VIRG":
+                            Parser.tokens.selectNext()
+                            if Parser.tokens.actual.type == "IDEN":
+                                ret.children.append(Iden(Parser.tokens.actual.value))
+                                Parser.tokens.selectNext()
+                            else:
+                                raise SyntaxError("Line {}: Identifier esperado".format(Parser.tokens.line_n))
+                        if Parser.tokens.actual.type == "CPAR":
+                            Parser.tokens.selectNext()
+                        else:
+                            raise SyntaxError("Line {}: Fechamento de parenteses esperado".format(Parser.tokens.line_n))
+                    ret.children.append(Parser.parseBlock())
+                else:
+                    raise SyntaxError("Line {}: Abertura de parenteses esperado".format(Parser.tokens.line_n))
+            else:
+                raise SyntaxError("Line {}: Identifier esperado".format(Parser.tokens.line_n))
+        # Funcion call
+        elif Parser.tokens.actual.type == "IDEF":
+            ret = FuncCall(Parser.tokens.actual.value)
+            Parser.tokens.selectNext()
+            if Parser.tokens.actual.type == "OPAR":
+                Parser.tokens.selectNext()
+                if Parser.tokens.actual.type == "CPAR":
+                    Parser.tokens.selectNext()
+                else:
+                    ret.children.append(Parser.parseRelationExpression())
+                    while Parser.tokens.actual.type == "VIRG":
+                        Parser.tokens.selectNext()
+                        ret.children.append(Parser.parseRelationExpression())
+                    if Parser.tokens.actual.type == "CPAR":
+                        Parser.tokens.selectNext()
+                    else:
+                        raise SyntaxError("Line {}: Fechamento de parenteses esperado".format(Parser.tokens.line_n))
+        # Return
+        elif Parser.tokens.actual.type == "RET":
+            ret = Return(Parser.tokens.actual.value)
+            Parser.tokens.selectNext()
+            ret.children.append(Parser.parseRelationExpression())
+
         else:
             raise SyntaxError("Line {}: Identifier, Echo, While ou If esperado".format(Parser.tokens.line_n))
 
@@ -347,6 +427,24 @@ class Parser:
             #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
             ret = Iden(Parser.tokens.actual.value)
             Parser.tokens.selectNext()
+        # Funcion call
+        elif Parser.tokens.actual.type == "IDEF":
+            ret = FuncCall(Parser.tokens.actual.value)
+            Parser.tokens.selectNext()
+            if Parser.tokens.actual.type == "OPAR":
+                Parser.tokens.selectNext()
+                if Parser.tokens.actual.type == "CPAR":
+                    Parser.tokens.selectNext()
+                else:
+                    ret.children.append(Parser.parseRelationExpression())
+                    while Parser.tokens.actual.type == "VIRG":
+                        Parser.tokens.selectNext()
+                        ret.children.append(Parser.parseRelationExpression())
+                    if Parser.tokens.actual.type == "CPAR":
+                        Parser.tokens.selectNext()
+                    else:
+                        raise SyntaxError("Line {}: Fechamento de parenteses esperado".format(Parser.tokens.line_n))
+
         elif Parser.tokens.actual.type == "READ":
             ret_t = Readline()
             Parser.tokens.selectNext()
@@ -445,41 +543,41 @@ class BinOp(Node):
         # aritmeticos
         if self.value == "+":
             if c1[0] == "string" or c2[0] == "string":
-                raise TypeError("Line {}: Nao e possivel '+' entre '{}' e '{}'".format(Parser.tokens.line_n, c1[0], c2[0]))
+                raise TypeError("Nao e possivel '+' entre '{}' e '{}'".format(c1[0], c2[0]))
             return ("int", c1_int[1] + c2_int[1])
         elif self.value == "-":
             if c1[0] == "string" or c2[0] == "string":
-                raise TypeError("Line {}: Nao e possivel '-' entre '{}' e '{}'".format(Parser.tokens.line_n, c1[0], c2[0]))
+                raise TypeError("Nao e possivel '-' entre '{}' e '{}'".format(c1[0], c2[0]))
             return ("int", c1_int[1] - c2_int[1])
         elif self.value == "*":
             if c1[0] == "string" or c2[0] == "string":
-                raise TypeError("Line {}: Nao e possivel '*' entre '{}' e '{}'".format(Parser.tokens.line_n, c1[0], c2[0]))
+                raise TypeError("Nao e possivel '*' entre '{}' e '{}'".format(c1[0], c2[0]))
             return ("int", c1_int[1] * c2_int[1])
         elif self.value == "/":
             if c1[0] == "string" or c2[0] == "string":
-                raise TypeError("Line {}: Nao e possivel '/' entre '{}' e '{}'".format(Parser.tokens.line_n, c1[0], c2[0]))
+                raise TypeError("Nao e possivel '/' entre '{}' e '{}'".format(c1[0], c2[0]))
             return ("int", c1_int[1] / c2_int[1])
         elif self.value == ">":
             if c1[0] == "string" or c2[0] == "string":
-                raise TypeError("Line {}: Nao e possivel '>' entre '{}' e '{}'".format(Parser.tokens.line_n, c1[0], c2[0]))
+                raise TypeError("Nao e possivel '>' entre '{}' e '{}'".format(c1[0], c2[0]))
             return ("bool", c1_int[1] > c2_int[1])
         elif self.value == "<":
             if c1[0] == "string" or c2[0] == "string":
-                raise TypeError("Line {}: Nao e possivel '<' entre '{}' e '{}'".format(Parser.tokens.line_n, c1[0], c2[0]))
+                raise TypeError("Nao e possivel '<' entre '{}' e '{}'".format(c1[0], c2[0]))
             return ("bool", c1_int[1] < c2_int[1])
         # booleanos
         elif self.value == "==":
             if not(c1[0] == c2[0]) and (c1[0] == "string" or c2[0] == "string"):
-                raise TypeError("Line {}: Nao e possivel '==' entre '{}' e '{}'".format(Parser.tokens.line_n, c1[0], c2[0]))
+                raise TypeError("Nao e possivel '==' entre '{}' e '{}'".format(c1[0], c2[0]))
             return ("bool", c1_int[1] == c2_int[1])
         
         elif self.value == "and":
             if c1[0] == "string" or c2[0] == "string":
-                raise TypeError("Line {}: Nao e possivel 'and' entre '{}' e '{}'".format(Parser.tokens.line_n, c1[0], c2[0]))
+                raise TypeError("Nao e possivel 'and' entre '{}' e '{}'".format(c1[0], c2[0]))
             return ("bool", c1_bool[1] and c2_bool[1])
         elif self.value == "or":
             if c1[0] == "string" or c2[0] == "string":
-                raise TypeError("Line {}: Nao e possivel 'or' entre '{}' e '{}'".format(Parser.tokens.line_n, c1[0], c2[0]))
+                raise TypeError("Nao e possivel 'or' entre '{}' e '{}'".format(c1[0], c2[0]))
             return ("bool", c1_bool[1] or c2_bool[1])
         # strings
         elif self.value == ".":
@@ -507,7 +605,7 @@ class UnOp(Node):
             else:
                 c1_int = ("int", 0)
         if c1[0] == "string":
-            raise TypeError("Line {}: Nao e possivel '{}' com '{}'".format(Parser.tokens.line_n, self.value, c1[0]))
+            raise TypeError("Nao e possivel '{}' com '{}'".format(self.value, c1[0]))
         if self.value == "+":
             return c1_int
         elif self.value == "-":
@@ -546,6 +644,8 @@ class Comm(Node):
     def evaluate(self, st):
         for c in self.children:
             c.evaluate(st)
+            if "return" in st.symbols.keys():
+                break
 
 class Assign(Node):
     def __init__(self, c1):
@@ -569,12 +669,11 @@ class Echo(Node):
         else:
             print(c1[1])
         
-
 class Readline(Node):
     def evaluate(self, st):
         inp = input()
         if type(inp) != int:
-            raise TypeError("Line {}: readline tem que ser 'int'".format(Parser.tokens.line_n))
+            raise TypeError("readline tem que ser 'int'")
         return ("int", inp)
 
 class While(Node):    
@@ -587,7 +686,7 @@ class While(Node):
             else:
                 c1_bool = ("bool", True)
         elif c1[0] == "string":
-            raise TypeError("Line {}: 'While' nao pode receber 'str'".format(Parser.tokens.line_n))
+            raise TypeError("'While' nao pode receber 'str'")
         while c1_bool[1]:
             self.children[1].evaluate(st)
             c1 = self.children[0].evaluate(st)
@@ -598,7 +697,7 @@ class While(Node):
                 else:
                     c1_bool = ("bool", True)
             elif c1[0] == "string":
-                raise TypeError("Line {}: 'While' nao pode receber 'str'".format(Parser.tokens.line_n))
+                raise TypeError("'While' nao pode receber 'str'")
 
 class If(Node):    
     def evaluate(self, st):
@@ -610,12 +709,42 @@ class If(Node):
             else:
                 c1_bool = ("bool", True)
         elif c1[0] == "string":
-            raise TypeError("Line {}: 'If' nao pode receber 'str'".format(Parser.tokens.line_n))
+            raise TypeError("'If' nao pode receber 'str'")
         if c1_bool[1]:
             self.children[1].evaluate(st)
         else:
             if len(self.children) > 2:
                 self.children[2].evaluate(st)
+
+class FuncDef(Node):
+    def evaluate(self, st):
+        FuncTable.setSymbol(self.value, self)
+
+class FuncCall(Node):
+    def __init__(self, value):
+        self.value = value
+        self.children = []
+
+    def evaluate(self, st):
+        func = FuncTable.getSymbol(self.value)
+        if len(func.children)-1 != len(self.children):
+            raise TypeError("{}() recebe {} args, recebeu {}".format(self.value, len(func.children)-1, len(self.children)))
+        stn = SymbolTable()
+        # set Symbols
+        for i in range(len(self.children)):
+            stn.setSymbol(func.children[i].value, self.children[i].evaluate(st))
+        func.children[-1].evaluate(stn)
+        if "return" in stn.symbols.keys():
+            return stn.getSymbol("return")
+        return None
+
+class Return(Node):
+    def __init__(self, value):
+        self.value = value
+        self.children = []
+
+    def evaluate(self, st):
+        st.setSymbol(self.value, self.children[0].evaluate(st))
 
 class SymbolTable():
     def __init__(self):
@@ -628,6 +757,21 @@ class SymbolTable():
         if symbol not in self.symbols.keys():
             raise NameError("{} nao definido".format(symbol))
         return self.symbols[symbol]
+
+class FuncTable():
+    funcs = defaultdict(Node)
+    
+    @staticmethod
+    def setSymbol(symbol, node):
+        if symbol in FuncTable.funcs.keys():
+            raise NameError("{}() ja definido".format(symbol))
+        FuncTable.funcs[symbol] = node
+    
+    @staticmethod
+    def getSymbol(symbol):
+        if symbol not in FuncTable.funcs.keys():
+            raise NameError("{}() nao definido".format(symbol))
+        return FuncTable.funcs[symbol]
 
 
 def main():

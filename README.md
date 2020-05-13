@@ -36,7 +36,7 @@ Diagrama sintático:
 
 EBNF:
 ```
-PROG = "<?php", COMM, "?>"
+PROG = "<?php", {COMM}, "?>"
 BLOC = "{", {COMM}, "}"
 COMM = (IDEN, "=", EXPR, ";")
       | ("echo", EXPR, ";")
@@ -44,6 +44,9 @@ COMM = (IDEN, "=", EXPR, ";")
       | ("while", "(", RELE, ")", COMM)
       | ("if", "(", RELE, ")", COMM)
       | ("if", "(", RELE, ")", COMM, "else", COMM)
+      | ("return", RELE, ";")
+      | (FIDE, "(", ARG1, ")", ";")
+      | ("function", FIDE, "(", ARG2, ")", BLOC)
 RELE = EXPR, {("=="|">"|"<"), EXPR}
 EXPR = TERM, {("+"|"-"|"or"), TERM}
 TERM = FACT, {("*"|"/"|"and"), FACT}
@@ -55,6 +58,10 @@ FACT = num
       | "true"
       | "false"
       | STRG
+      | (FIDE, "(", ARG1, ")", ";")
 IDEN =  "$", letra, {( letra | num | "_" )}
 STRG = '"', {letra}, '"'
+FIDE = letra, {( letra | num | "_" )}
+ARG1 = { (RELE, {",", RELE}) }
+ARG2 = { (IDEN, {",", IDEN}) }
 ```
