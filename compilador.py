@@ -157,41 +157,42 @@ class Tokenizer:
                 elif self.origin[i:self.position].lower() == "else":
                     self.actual = Token("ELSE", self.origin[i:self.position].lower())
                     return
-                elif self.origin[i:self.position].lower() == "readline":
-                    self.actual = Token("READ", self.origin[i:self.position].lower())
-                    return
+                # elif self.origin[i:self.position].lower() == "readline":
+                #     self.actual = Token("READ", self.origin[i:self.position].lower())
+                #     return
                 elif self.origin[i:self.position].lower() == "true":
                     self.actual = Token("TRUE", True)
                     return
                 elif self.origin[i:self.position].lower() == "false":
                     self.actual = Token("FALSE", False)
                     return
-                elif self.origin[i:self.position].lower() == "function":
-                    self.actual = Token("FUND", "function")
-                    return
-                elif self.origin[i:self.position].lower() == "return":
-                    self.actual = Token("RET", "return")
-                    return
+                # elif self.origin[i:self.position].lower() == "function":
+                #     self.actual = Token("FUND", "function")
+                #     return
+                # elif self.origin[i:self.position].lower() == "return":
+                #     self.actual = Token("RET", "return")
+                #     return
                 else:
-                    while self.origin[self.position].isdigit() or self.origin[self.position].isalpha() or self.origin[self.position] == "_":
-                        self.position += 1
-                        if self.position >= len(self.origin):
-                            break
-                    if self.origin[self.position] == "(":
-                        self.actual = Token("IDEF", self.origin[i:self.position].lower())
-                    else:
-                        raise SyntaxError("Keyword desconhecida {}".format(self.origin[i:self.position]))
-            elif self.origin[self.position] == '"':
-                i = self.position
-                self.position += 1
-                if self.position < len(self.origin):
-                    while self.origin[self.position] != '"':
-                        self.position += 1
-                        if self.position >= len(self.origin):
-                            break
-                    self.actual = Token("STRG", self.origin[i+1:self.position])
-                    self.position += 1
-                return
+                    # while self.origin[self.position].isdigit() or self.origin[self.position].isalpha() or self.origin[self.position] == "_":
+                    #     self.position += 1
+                    #     if self.position >= len(self.origin):
+                    #         break
+                    # if self.origin[self.position] == "(":
+                    #     self.actual = Token("IDEF", self.origin[i:self.position].lower())
+                    # else:
+                    #     raise SyntaxError("Keyword desconhecida {}".format(self.origin[i:self.position]))
+                    raise SyntaxError("Keyword desconhecida {}".format(self.origin[i:self.position]))
+            # elif self.origin[self.position] == '"':
+            #     i = self.position
+            #     self.position += 1
+            #     if self.position < len(self.origin):
+            #         while self.origin[self.position] != '"':
+            #             self.position += 1
+            #             if self.position >= len(self.origin):
+            #                 break
+            #         self.actual = Token("STRG", self.origin[i+1:self.position])
+            #         self.position += 1
+            #     return
             
             else:
                 raise SyntaxError("Caractere nao permitido {}".format(self.origin[self.position]))
@@ -202,6 +203,7 @@ class Tokenizer:
 
 class Parser:
     tokens = None
+    id_n = 0
 
     @staticmethod
     def parseProgram():
@@ -252,11 +254,13 @@ class Parser:
             ret = Parser.parseBlock()
         # Identifier
         elif Parser.tokens.actual.type == "IDEN":
-            ret = Iden(Parser.tokens.actual.value)
+            ret = Iden(Parser.tokens.actual.value, Parser.id_n)
+            Parser.id_n += 1
             Parser.tokens.selectNext()
             #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
             if Parser.tokens.actual.type == "IGUA":
-                ret = Assign(ret)
+                ret = Assign(ret, Parser.id_n)
+                Parser.id_n += 1
                 Parser.tokens.selectNext()
                 ret.children.append(Parser.parseRelationExpression())
                 if Parser.tokens.actual.type == "PVIR":
@@ -278,7 +282,8 @@ class Parser:
                 raise SyntaxError("Line {}: Ponto e virgula esperado".format(Parser.tokens.line_n))
         # While
         elif Parser.tokens.actual.type == "WHIL":
-            ret = While()
+            ret = While(Parser.id_n)
+            Parser.id_n += 1
             Parser.tokens.selectNext()
             if Parser.tokens.actual.type == "OPAR":
                 Parser.tokens.selectNext()
@@ -292,7 +297,8 @@ class Parser:
                 raise SyntaxError("Line {}: Abertura de parenteses esperado".format(Parser.tokens.line_n))
         # If
         elif Parser.tokens.actual.type == "IF":
-            ret = If()
+            ret = If(Parser.id_n)
+            Parser.id_n += 1
             Parser.tokens.selectNext()
             if Parser.tokens.actual.type == "OPAR":
                 Parser.tokens.selectNext()
@@ -308,63 +314,68 @@ class Parser:
             else:
                 raise SyntaxError("Line {}: Abertura de parenteses esperado".format(Parser.tokens.line_n))
         # Declaracao function
-        elif Parser.tokens.actual.type == "FUND":
-            ret = FuncDef()
-            Parser.tokens.selectNext()
-            if Parser.tokens.actual.type == "IDEF":
-                ret.value = Parser.tokens.actual.value
-                Parser.tokens.selectNext()
-                if Parser.tokens.actual.type == "OPAR":
-                    Parser.tokens.selectNext()
-                    if Parser.tokens.actual.type == "CPAR":
-                        Parser.tokens.selectNext()
-                    else:
-                        if Parser.tokens.actual.type == "IDEN":
-                            ret.children.append(Iden(Parser.tokens.actual.value))
-                            Parser.tokens.selectNext()
-                        else:
-                            raise SyntaxError("Line {}: Identifier esperado".format(Parser.tokens.line_n))
-                        while Parser.tokens.actual.type == "VIRG":
-                            Parser.tokens.selectNext()
-                            if Parser.tokens.actual.type == "IDEN":
-                                ret.children.append(Iden(Parser.tokens.actual.value))
-                                Parser.tokens.selectNext()
-                            else:
-                                raise SyntaxError("Line {}: Identifier esperado".format(Parser.tokens.line_n))
-                        if Parser.tokens.actual.type == "CPAR":
-                            Parser.tokens.selectNext()
-                        else:
-                            raise SyntaxError("Line {}: Fechamento de parenteses esperado".format(Parser.tokens.line_n))
-                    ret.children.append(Parser.parseBlock())
-                else:
-                    raise SyntaxError("Line {}: Abertura de parenteses esperado".format(Parser.tokens.line_n))
-            else:
-                raise SyntaxError("Line {}: Identifier esperado".format(Parser.tokens.line_n))
+        # elif Parser.tokens.actual.type == "FUND":
+        #     ret = FuncDef()
+        #     Parser.tokens.selectNext()
+        #     if Parser.tokens.actual.type == "IDEF":
+        #         ret.value = Parser.tokens.actual.value
+        #         Parser.tokens.selectNext()
+        #         if Parser.tokens.actual.type == "OPAR":
+        #             Parser.tokens.selectNext()
+        #             if Parser.tokens.actual.type == "CPAR":
+        #                 Parser.tokens.selectNext()
+        #             else:
+        #                 if Parser.tokens.actual.type == "IDEN":
+        #                     ret.children.append(Iden(Parser.tokens.actual.value, Parser.id_n))
+        #                     Parser.id_n += 1
+        #                     Parser.tokens.selectNext()
+        #                 else:
+        #                     raise SyntaxError("Line {}: Identifier esperado".format(Parser.tokens.line_n))
+        #                 while Parser.tokens.actual.type == "VIRG":
+        #                     Parser.tokens.selectNext()
+        #                     if Parser.tokens.actual.type == "IDEN":
+        #                         ret.children.append(Iden(Parser.tokens.actual.value, Parser.id_n))
+        #                         Parser.id_n += 1
+        #                         Parser.tokens.selectNext()
+        #                     else:
+        #                         raise SyntaxError("Line {}: Identifier esperado".format(Parser.tokens.line_n))
+        #                 if Parser.tokens.actual.type == "CPAR":
+        #                     Parser.tokens.selectNext()
+        #                 else:
+        #                     raise SyntaxError("Line {}: Fechamento de parenteses esperado".format(Parser.tokens.line_n))
+        #             ret.children.append(Parser.parseBlock())
+        #         else:
+        #             raise SyntaxError("Line {}: Abertura de parenteses esperado".format(Parser.tokens.line_n))
+        #     else:
+        #         raise SyntaxError("Line {}: Identifier esperado".format(Parser.tokens.line_n))
         # Funcion call
-        elif Parser.tokens.actual.type == "IDEF":
-            ret = FuncCall(Parser.tokens.actual.value)
-            Parser.tokens.selectNext()
-            if Parser.tokens.actual.type == "OPAR":
-                Parser.tokens.selectNext()
-                if Parser.tokens.actual.type == "CPAR":
-                    Parser.tokens.selectNext()
-                else:
-                    ret.children.append(Parser.parseRelationExpression())
-                    while Parser.tokens.actual.type == "VIRG":
-                        Parser.tokens.selectNext()
-                        ret.children.append(Parser.parseRelationExpression())
-                    if Parser.tokens.actual.type == "CPAR":
-                        Parser.tokens.selectNext()
-                    else:
-                        raise SyntaxError("Line {}: Fechamento de parenteses esperado".format(Parser.tokens.line_n))
+        # elif Parser.tokens.actual.type == "IDEF":
+        #     ret = FuncCall(Parser.tokens.actual.value, Parser.id_n)
+        #     Parser.id_n += 1
+        #     Parser.tokens.selectNext()
+        #     if Parser.tokens.actual.type == "OPAR":
+        #         Parser.tokens.selectNext()
+        #         if Parser.tokens.actual.type == "CPAR":
+        #             Parser.tokens.selectNext()
+        #         else:
+        #             ret.children.append(Parser.parseRelationExpression())
+        #             while Parser.tokens.actual.type == "VIRG":
+        #                 Parser.tokens.selectNext()
+        #                 ret.children.append(Parser.parseRelationExpression())
+        #             if Parser.tokens.actual.type == "CPAR":
+        #                 Parser.tokens.selectNext()
+        #             else:
+        #                 raise SyntaxError("Line {}: Fechamento de parenteses esperado".format(Parser.tokens.line_n))
         # Return
-        elif Parser.tokens.actual.type == "RET":
-            ret = Return(Parser.tokens.actual.value)
-            Parser.tokens.selectNext()
-            ret.children.append(Parser.parseRelationExpression())
+        # elif Parser.tokens.actual.type == "RET":
+        #     ret = Return(Parser.tokens.actual.value, Parser.id_n)
+        #     Parser.id_n += 1
+        #     Parser.tokens.selectNext()
+        #     ret.children.append(Parser.parseRelationExpression())
 
         else:
             raise SyntaxError("Line {}: Identifier, Echo, While ou If esperado".format(Parser.tokens.line_n))
+        
 
         return ret
 
@@ -373,7 +384,8 @@ class Parser:
         ret = Parser.parseExpression()
         while Parser.tokens.actual.type == "IGUAR" or Parser.tokens.actual.type == "MAIO" or Parser.tokens.actual.type == "MENO":
             #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
-            ret = BinOp(Parser.tokens.actual.value, ret)
+            ret = BinOp(Parser.tokens.actual.value, ret, Parser.id_n)
+            Parser.id_n += 1
             Parser.tokens.selectNext()
             ret.children.append(Parser.parseExpression())
         
@@ -382,9 +394,10 @@ class Parser:
     @staticmethod
     def parseExpression():
         ret = Parser.parseTerm()
-        while Parser.tokens.actual.type == "PLUS" or Parser.tokens.actual.type == "MINUS" or Parser.tokens.actual.type == "OR" or Parser.tokens.actual.type == "PONT":
+        while Parser.tokens.actual.type == "PLUS" or Parser.tokens.actual.type == "MINUS" or Parser.tokens.actual.type == "OR": #or Parser.tokens.actual.type == "PONT":
             #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
-            ret = BinOp(Parser.tokens.actual.value, ret)
+            ret = BinOp(Parser.tokens.actual.value, ret, Parser.id_n)
+            Parser.id_n += 1
             Parser.tokens.selectNext()
             ret.children.append(Parser.parseTerm())
         
@@ -395,7 +408,8 @@ class Parser:
         ret = Parser.parseFactor()
         while Parser.tokens.actual.type == "MULT" or Parser.tokens.actual.type == "DIV" or Parser.tokens.actual.type == "AND":
             #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
-            tmp_ret = BinOp(Parser.tokens.actual.value, ret)
+            tmp_ret = BinOp(Parser.tokens.actual.value, ret, Parser.id_n)
+            Parser.id_n += 1
             Parser.tokens.selectNext()
             tmp_ret.children.append(Parser.parseFactor())
             ret = tmp_ret
@@ -406,11 +420,13 @@ class Parser:
     def parseFactor():
         if Parser.tokens.actual.type == "INT":
             #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
-            ret = IntVal(int(Parser.tokens.actual.value))
+            ret = IntVal(int(Parser.tokens.actual.value), Parser.id_n)
+            Parser.id_n += 1
             Parser.tokens.selectNext()
         elif Parser.tokens.actual.type == "PLUS" or Parser.tokens.actual.type == "MINUS" or Parser.tokens.actual.type == "NOT":
             #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
-            ret = UnOp(Parser.tokens.actual.value)
+            ret = UnOp(Parser.tokens.actual.value, Parser.id_n)
+            Parser.id_n += 1
             Parser.tokens.selectNext()
             ret.children.append(Parser.parseFactor())
         elif Parser.tokens.actual.type == "OPAR":
@@ -426,43 +442,48 @@ class Parser:
             Parser.tokens.selectNext()
         elif Parser.tokens.actual.type == "IDEN":
             #print("    ",Parser.tokens.actual.type, Parser.tokens.actual.value)
-            ret = Iden(Parser.tokens.actual.value)
+            ret = Iden(Parser.tokens.actual.value, Parser.id_n)
+            Parser.id_n += 1
             Parser.tokens.selectNext()
-        # Funcion call
-        elif Parser.tokens.actual.type == "IDEF":
-            ret = FuncCall(Parser.tokens.actual.value)
-            Parser.tokens.selectNext()
-            if Parser.tokens.actual.type == "OPAR":
-                Parser.tokens.selectNext()
-                if Parser.tokens.actual.type == "CPAR":
-                    Parser.tokens.selectNext()
-                else:
-                    ret.children.append(Parser.parseRelationExpression())
-                    while Parser.tokens.actual.type == "VIRG":
-                        Parser.tokens.selectNext()
-                        ret.children.append(Parser.parseRelationExpression())
-                    if Parser.tokens.actual.type == "CPAR":
-                        Parser.tokens.selectNext()
-                    else:
-                        raise SyntaxError("Line {}: Fechamento de parenteses esperado".format(Parser.tokens.line_n))
-
-        elif Parser.tokens.actual.type == "READ":
-            ret_t = Readline()
-            Parser.tokens.selectNext()
-            if Parser.tokens.actual.type == "OPAR":
-                Parser.tokens.selectNext()
-                if Parser.tokens.actual.type == "CPAR":
-                    Parser.tokens.selectNext()
-                    ret = ret_t
-                else:
-                    raise SyntaxError("Line {}: Fechamento de parenteses esperado apos readline".format(Parser.tokens.line_n))
-            else:
-                raise SyntaxError("Line {}: Parenteses esperado apos readline".format(Parser.tokens.line_n))
-        elif Parser.tokens.actual.type == "STRG":
-            ret = StringVal(Parser.tokens.actual.value)
-            Parser.tokens.selectNext()
+        
+        # # Funcion call
+        # elif Parser.tokens.actual.type == "IDEF":
+        #     ret = FuncCall(Parser.tokens.actual.value, Parser.id_n)
+        #     Parser.id_n += 1
+        #     Parser.tokens.selectNext()
+        #     if Parser.tokens.actual.type == "OPAR":
+        #         Parser.tokens.selectNext()
+        #         if Parser.tokens.actual.type == "CPAR":
+        #             Parser.tokens.selectNext()
+        #         else:
+        #             ret.children.append(Parser.parseRelationExpression())
+        #             while Parser.tokens.actual.type == "VIRG":
+        #                 Parser.tokens.selectNext()
+        #                 ret.children.append(Parser.parseRelationExpression())
+        #             if Parser.tokens.actual.type == "CPAR":
+        #                 Parser.tokens.selectNext()
+        #             else:
+        #                 raise SyntaxError("Line {}: Fechamento de parenteses esperado".format(Parser.tokens.line_n))
+        
+        # elif Parser.tokens.actual.type == "READ":
+        #     ret_t = Readline()
+        #     Parser.tokens.selectNext()
+        #     if Parser.tokens.actual.type == "OPAR":
+        #         Parser.tokens.selectNext()
+        #         if Parser.tokens.actual.type == "CPAR":
+        #             Parser.tokens.selectNext()
+        #             ret = ret_t
+        #         else:
+        #             raise SyntaxError("Line {}: Fechamento de parenteses esperado apos readline".format(Parser.tokens.line_n))
+        #     else:
+        #         raise SyntaxError("Line {}: Parenteses esperado apos readline".format(Parser.tokens.line_n))
+        # elif Parser.tokens.actual.type == "STRG":
+        #     ret = StringVal(Parser.tokens.actual.value, Parser.id_n)
+        #     Parser.id_n += 1
+        #     Parser.tokens.selectNext()
         elif Parser.tokens.actual.type == "TRUE" or Parser.tokens.actual.type == "FALSE":
-            ret = BoolVal(Parser.tokens.actual.value)
+            ret = BoolVal(Parser.tokens.actual.value, Parser.id_n)
+            Parser.id_n += 1
             Parser.tokens.selectNext()
         
         elif Parser.tokens.actual.type == "EOF":
@@ -505,137 +526,126 @@ class Node:
     def __init__(self):
         self.value = None
         self.children = []
+        self.id_n = None
     
     def evaluate(self, st):
         raise NotImplementedError('subclasses must override evaluate()!')
 
 class BinOp(Node):
-    def __init__(self, value, c1):
+    def __init__(self, value, c1, id_n):
         self.value = value
         self.children = [c1]
+        self.id_n = id_n
 
     def evaluate(self, st):
-        c1 = self.children[0].evaluate(st)
-        c2 = self.children[1].evaluate(st)
-        c1_int = c1
-        c2_int = c2
-        if c1[0] == "bool":
-            if c1[1] == True:
-                c1_int = ("int", 1)
-            else:
-                c1_int = ("int", 0)
-        if c2[0] == "bool":
-            if c2[1] == True:
-                c2_int = ("int", 1)
-            else:
-                c2_int = ("int", 0)
-        c1_bool = c1
-        c2_bool = c2
-        if c1[0] == "int":
-            if c1[1] == 0:
-                c1_bool = ("bool", False)
-            else:
-                c1_bool = ("bool", True)
-        if c2[0] == "int":
-            if c2[1] == 0:
-                c2_bool = ("bool", False)
-            else:
-                c2_bool = ("bool", True)
+        self.children[0].evaluate(st)
+        Nasm.write("PUSH EBX")
+        self.children[1].evaluate(st)
+        Nasm.write("POP EAX")
+        
         # aritmeticos
         if self.value == "+":
-            if c1[0] == "string" or c2[0] == "string":
-                raise TypeError("Nao e possivel '+' entre '{}' e '{}'".format(c1[0], c2[0]))
-            return ("int", c1_int[1] + c2_int[1])
+            Nasm.write("ADD EAX, EBX")
         elif self.value == "-":
-            if c1[0] == "string" or c2[0] == "string":
-                raise TypeError("Nao e possivel '-' entre '{}' e '{}'".format(c1[0], c2[0]))
-            return ("int", c1_int[1] - c2_int[1])
+            Nasm.write("SUB EAX, EBX")
         elif self.value == "*":
-            if c1[0] == "string" or c2[0] == "string":
-                raise TypeError("Nao e possivel '*' entre '{}' e '{}'".format(c1[0], c2[0]))
-            return ("int", c1_int[1] * c2_int[1])
+            Nasm.write("IMUL EAX, EBX")
         elif self.value == "/":
-            if c1[0] == "string" or c2[0] == "string":
-                raise TypeError("Nao e possivel '/' entre '{}' e '{}'".format(c1[0], c2[0]))
-            return ("int", c1_int[1] / c2_int[1])
-        elif self.value == ">":
-            if c1[0] == "string" or c2[0] == "string":
-                raise TypeError("Nao e possivel '>' entre '{}' e '{}'".format(c1[0], c2[0]))
-            return ("bool", c1_int[1] > c2_int[1])
-        elif self.value == "<":
-            if c1[0] == "string" or c2[0] == "string":
-                raise TypeError("Nao e possivel '<' entre '{}' e '{}'".format(c1[0], c2[0]))
-            return ("bool", c1_int[1] < c2_int[1])
+            Nasm.write("IDIV EAX, EBX")
+            Nasm.write(" EAX, EBX")
         # booleanos
+        elif self.value == ">":
+            Nasm.write("CMP EAX, EBX")
+            Nasm.write("JG J{}".format(self.id_n))
+            Nasm.write("MOV EAX, False")
+            Nasm.write("JMP E{}".format(self.id_n))
+            Nasm.write("J{}:".format(self.id_n))
+            Nasm.write("MOV EAX, True")
+            Nasm.write("E{}:".format(self.id_n))
+        elif self.value == "<":
+            Nasm.write("CMP EAX, EBX")
+            Nasm.write("JL J{}".format(self.id_n))
+            Nasm.write("MOV EAX, False")
+            Nasm.write("JMP E{}".format(self.id_n))
+            Nasm.write("J{}:".format(self.id_n))
+            Nasm.write("MOV EAX, True")
+            Nasm.write("E{}:".format(self.id_n))
         elif self.value == "==":
-            if not(c1[0] == c2[0]) and (c1[0] == "string" or c2[0] == "string"):
-                raise TypeError("Nao e possivel '==' entre '{}' e '{}'".format(c1[0], c2[0]))
-            return ("bool", c1_int[1] == c2_int[1])
+            Nasm.write("CMP EAX, EBX")
+            Nasm.write("JE J{}".format(self.id_n))
+            Nasm.write("MOV EAX, False")
+            Nasm.write("JMP E{}".format(self.id_n))
+            Nasm.write("J{}:".format(self.id_n))
+            Nasm.write("MOV EAX, True")
+            Nasm.write("E{}:".format(self.id_n))
         
         elif self.value == "and":
-            if c1[0] == "string" or c2[0] == "string":
-                raise TypeError("Nao e possivel 'and' entre '{}' e '{}'".format(c1[0], c2[0]))
-            return ("bool", c1_bool[1] and c2_bool[1])
+            Nasm.write("AND EAX, EBX")
         elif self.value == "or":
-            if c1[0] == "string" or c2[0] == "string":
-                raise TypeError("Nao e possivel 'or' entre '{}' e '{}'".format(c1[0], c2[0]))
-            return ("bool", c1_bool[1] or c2_bool[1])
+            Nasm.write("OR EAX, EBX")
         # strings
-        elif self.value == ".":
-            return ("string", str(c1[1]) + str(c2[1]))
+        #elif self.value == ".":
+        #    Nasm.write(" EAX, EBX")
         else:
             raise TypeError("BinOp Fail ({})".format(self.value))
 
+        Nasm.write("MOV EBX, EAX")
+        
+        Nasm.write("")
+
+        
+
 class UnOp(Node):
-    def __init__(self, value):
+    def __init__(self, value, id_n):
         self.value = value
         self.children = []
+        self.id_n = id_n
 
     def evaluate(self, st):
-        c1 = self.children[0].evaluate(st)
-        c1_bool = c1
-        if c1[0] == "int":
-            if c1[1] == 0:
-                c1_bool = ("bool", False)
-            else:
-                c1_bool = ("bool", True)
-        c1_int = c1
-        if c1[0] == "bool":
-            if c1[1] == True:
-                c1_int = ("int", 1)
-            else:
-                c1_int = ("int", 0)
-        if c1[0] == "string":
-            raise TypeError("Nao e possivel '{}' com '{}'".format(self.value, c1[0]))
+        self.children[0].evaluate(st)
         if self.value == "+":
-            return c1_int
+            Nasm.write("MOV EAX, EBX")
         elif self.value == "-":
-            return (c1_int[0], -c1_int[1])
+            Nasm.write("NEG EBX")
+            Nasm.write("MOV EAX, EBX")
         elif self.value == "!":
-            return (c1_bool[0], not c1_bool[1])
+            Nasm.write("CMP EBX, True")
+            Nasm.write("JE J{}".format(self.id_n))
+            Nasm.write("MOV EAX, True")
+            Nasm.write("JMP E{}".format(self.id_n))
+            Nasm.write("J{}:".format(self.id_n))
+            Nasm.write("MOV EAX, False")
+            Nasm.write("E{}:".format(self.id_n))
         else:
             raise TypeError("UnOp Fail ({})".format(self.value))
 
+        Nasm.write("MOV EBX, EAX")
+        Nasm.write("")
+
 class IntVal(Node):
-    def __init__(self, value):
+    def __init__(self, value, id_n):
         self.value = value
+        self.id = id_n
 
     def evaluate(self, st):
-        return ("int", self.value)
+        Nasm.write("MOV EBX, {}".format(self.value))
+        Nasm.write("")
 
 class BoolVal(Node):
-    def __init__(self, value):
+    def __init__(self, value, id_n):
         self.value = value
+        self.id_n = id_n
 
     def evaluate(self, st):
         return ("bool", self.value)
 
-class StringVal(Node):
-    def __init__(self, value):
-        self.value = value
+# class StringVal(Node):
+#     def __init__(self, value, id_n):
+#         self.value = value
+#         self.id_n = id_n
 
-    def evaluate(self, st):
-        return ("string", self.value)
+    # def evaluate(self, st):
+    #     return ("string", self.value)
 
 class NoOp(Node):
     def evaluate(self, st):
@@ -649,135 +659,155 @@ class Comm(Node):
                 break
 
 class Assign(Node):
-    def __init__(self, c1):
+    def __init__(self, c1, id_n):
         self.children = [c1]
+        self.id_n = id_n
 
     def evaluate(self, st):
-        st.setSymbol(self.children[0].value, self.children[1].evaluate(st))
+        id_name = self.children[0].value
+        if id_name not in list(st.symbols.keys()):
+            st.setSymbol(id_name)
+            Nasm.write("PUSH DWORD 0")
+            self.children[1].evaluate(st)
+            Nasm.write("MOV [EBP-{}], EBX".format(st.getSymbol(id_name)*4))
+        else:
+            self.children[1].evaluate(st)
+            Nasm.write("MOV [EBP-{}], EBX".format(st.getSymbol(id_name)*4))
+        Nasm.write("")
 
 class Iden(Node):
-    def __init__(self, value):
+    def __init__(self, value, id_n):
         self.value = value
+        self.id_n = id_n
 
     def evaluate(self, st):
-        return st.getSymbol(self.value)
+        Nasm.write("MOV EBX, [EBP-{}]".format(st.getSymbol(self.value)*4))
+        Nasm.write("")
 
 class Echo(Node):
     def evaluate(self, st):
-        c1 = self.children[0].evaluate(st)
-        if c1[0] == "int":
-            print(int(c1[1]))
-        else:
-            print(c1[1])
+        self.children[0].evaluate(st)
+        Nasm.write("PUSH EBX")
+        Nasm.write("CALL print")
+        Nasm.write("POP EBX")
+        Nasm.write("")
         
-class Readline(Node):
-    def evaluate(self, st):
-        inp = input()
-        try:
-            inp = int(inp)
-        except ValueError:
-            raise TypeError("readline tem que ser 'int'")
-        return ("int", inp)
+# class Readline(Node):
+#     def evaluate(self, st):
+#         inp = input()
+#         try:
+#             inp = int(inp)
+#         except ValueError:
+#             raise TypeError("readline tem que ser 'int'")
+#         return ("int", inp)
 
-class While(Node):    
-    def evaluate(self, st):
-        c1 = self.children[0].evaluate(st)
-        c1_bool = c1
-        if c1[0] == "int":
-            if c1[1] == 0:
-                c1_bool = ("bool", False)
-            else:
-                c1_bool = ("bool", True)
-        elif c1[0] == "string":
-            raise TypeError("'While' nao pode receber 'str'")
-        while c1_bool[1]:
-            self.children[1].evaluate(st)
-            c1 = self.children[0].evaluate(st)
-            c1_bool = c1
-            if c1[0] == "int":
-                if c1[1] == 0:
-                    c1_bool = ("bool", False)
-                else:
-                    c1_bool = ("bool", True)
-            elif c1[0] == "string":
-                raise TypeError("'While' nao pode receber 'str'")
-
-class If(Node):    
-    def evaluate(self, st):
-        c1 = self.children[0].evaluate(st)
-        c1_bool = c1
-        if c1[0] == "int":
-            if c1[1] == 0:
-                c1_bool = ("bool", False)
-            else:
-                c1_bool = ("bool", True)
-        elif c1[0] == "string":
-            raise TypeError("'If' nao pode receber 'str'")
-        if c1_bool[1]:
-            self.children[1].evaluate(st)
-        else:
-            if len(self.children) > 2:
-                self.children[2].evaluate(st)
-
-class FuncDef(Node):
-    def evaluate(self, st):
-        FuncTable.setSymbol(self.value, self)
-
-class FuncCall(Node):
-    def __init__(self, value):
-        self.value = value
+class While(Node):
+    def __init__(self, id_n):
+        self.id_n = id_n
         self.children = []
 
     def evaluate(self, st):
-        func = FuncTable.getSymbol(self.value)
-        if len(func.children)-1 != len(self.children):
-            raise TypeError("{}() recebe {} args, recebeu {}".format(self.value, len(func.children)-1, len(self.children)))
-        stn = SymbolTable()
-        # set Symbols
-        for i in range(len(self.children)):
-            stn.setSymbol(func.children[i].value, self.children[i].evaluate(st))
-        func.children[-1].evaluate(stn)
-        if "return" in stn.symbols.keys():
-            return stn.getSymbol("return")
-        return None
+        Nasm.write("WHILE{}:".format(self.id_n))
 
-class Return(Node):
-    def __init__(self, value):
-        self.value = value
-        self.children = []
+        self.children[0].evaluate(st)
 
+        Nasm.write("CMP EBX, False")
+        Nasm.write("JE E{}".format(self.id_n))
+
+        self.children[1].evaluate(st)
+        
+        Nasm.write("JMP WHILE{}".format(self.id_n))
+        
+        Nasm.write("E{}:".format(self.id_n))
+        Nasm.write("")
+
+class If(Node):
+    def __init__(self, id_n):
+        self.id_n = id_n
     def evaluate(self, st):
-        st.setSymbol(self.value, self.children[0].evaluate(st))
+        self.children[0].evaluate(st)
+
+        Nasm.write("CMP EBX, False")
+        Nasm.write("JE E{}".format(self.id_n))
+
+        self.children[1].evaluate(st)
+
+        Nasm.write("E{}:".format(self.id_n))
+        Nasm.write("")
+
+# class FuncDef(Node):
+#     def evaluate(self, st):
+#         FuncTable.setSymbol(self.value, self)
+
+# class FuncCall(Node):
+#     def __init__(self, value, id_n):
+#         self.value = value
+#         self.children = []
+#         self.id_n = id_n
+
+#     def evaluate(self, st):
+#         func = FuncTable.getSymbol(self.value)
+#         if len(func.children)-1 != len(self.children):
+#             raise TypeError("{}() recebe {} args, recebeu {}".format(self.value, len(func.children)-1, len(self.children)))
+#         stn = SymbolTable()
+#         # set Symbols
+#         for i in range(len(self.children)):
+#             stn.setSymbol(func.children[i].value, self.children[i].evaluate(st))
+#         func.children[-1].evaluate(stn)
+#         if "return" in stn.symbols.keys():
+#             return stn.getSymbol("return")
+#         return None
+
+# class Return(Node):
+#     def __init__(self, value, id_n):
+#         self.value = value
+#         self.children = []
+#         self.id_n = id_n
+
+#     def evaluate(self, st):
+#         st.setSymbol(self.value, self.children[0].evaluate(st))
 
 class SymbolTable():
     def __init__(self):
         self.symbols = defaultdict(tuple)
+        self.desl = 1
     
-    def setSymbol(self, symbol, value):
-        self.symbols[symbol] = value
+    def setSymbol(self, symbol):
+        self.symbols[symbol] = self.desl
+        self.desl += 1
     
     def getSymbol(self, symbol):
         if symbol not in self.symbols.keys():
             raise NameError("{} nao definido".format(symbol))
         return self.symbols[symbol]
 
-class FuncTable():
-    funcs = defaultdict(Node)
+# class FuncTable():
+#     funcs = defaultdict(Node)
     
-    @staticmethod
-    def setSymbol(symbol, node):
-        if symbol in FuncTable.funcs.keys():
-            raise NameError("{}() ja definido".format(symbol))
-        FuncTable.funcs[symbol] = node
+#     @staticmethod
+#     def setSymbol(symbol, node):
+#         if symbol in FuncTable.funcs.keys():
+#             raise NameError("{}() ja definido".format(symbol))
+#         FuncTable.funcs[symbol] = node
     
+#     @staticmethod
+#     def getSymbol(symbol):
+#         if symbol not in FuncTable.funcs.keys():
+#             raise NameError("{}() nao definido".format(symbol))
+#         return FuncTable.funcs[symbol]
+
+class Nasm():
+    text = []
+
     @staticmethod
-    def getSymbol(symbol):
-        if symbol not in FuncTable.funcs.keys():
-            raise NameError("{}() nao definido".format(symbol))
-        return FuncTable.funcs[symbol]
+    def write(t):
+        Nasm.text.append("  " + t + "\n")
 
 
 def main():
+    with open("modelo_copia.asm") as f:
+        modelo = f.readlines()
+    
     if len(sys.argv) <= 1:
         raise SyntaxError("Sem argumentos")
     
@@ -794,6 +824,14 @@ def main():
     st = SymbolTable()
 
     ast.evaluate(st)
+
+    nline = 83
+    for line in Nasm.text:
+        modelo.insert(nline, line)
+        nline += 1
+
+    print("".join(modelo))
+
 
 if __name__ == "__main__":
     main()
