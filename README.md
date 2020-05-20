@@ -29,9 +29,11 @@ Operadores disponíveis:
 - "." concatenação (até v2.4)
 
 Exemplo de uso:
-> python compilador.py exemplo_entrada.php > programa.asm
-> nasm -f elf32 -F dwarf -g program.asm
-> ld -m elf_i386 -o program program.o
+```bash
+python compilador.py exemplo_entrada.php > programa.asm
+nasm -f elf32 -F dwarf -g program.asm
+ld -m elf_i386 -o program program.o
+```
 
 Diagrama sintático:
 
