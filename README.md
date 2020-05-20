@@ -11,8 +11,8 @@ Keywords disponíveis:
 - "echo"
 - "while"
 - "if" e "else"
-- "readline"
-- "function"
+- "readline" (até v2.4)
+- "function" (até v2.4)
 
 Operadores disponíveis:
 - "+"
@@ -26,10 +26,12 @@ Operadores disponíveis:
 - "or"
 - "and"
 - "!"
-- "." concatenação
+- "." concatenação (até v2.4)
 
 Exemplo de uso:
-> python compilador.py exemplo_entrada.php
+> python compilador.py exemplo_entrada.php > programa.asm
+> nasm -f elf32 -F dwarf -g program.asm
+> ld -m elf_i386 -o program program.o
 
 Diagrama sintático:
 
