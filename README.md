@@ -1,6 +1,6 @@
 # Compilador
 
-*Ultima atualizacao README.md: 20/05*
+*Ultima atualizacao README.md: 20/05/2020*
 
 #### Compilador de .php
 
